@@ -64,70 +64,121 @@ except Exception as e:
     driver.quit()
     exit()
 
-# Locate all visible More (3-dot) buttons initially
-print("🔄 Locating all visible More buttons...")
-more_buttons = list(pyautogui.locateAllOnScreen("more_button.png", confidence=0.5))
-print(f"🔍 Found {len(more_buttons)} 3-dot buttons on screen.")
+# Get all worksheet cards using Selenium and filter P5-P6
+print("🔍 Detecting worksheet cards using Selenium...")
+try:
+    # Try more reliable locator for worksheet cards
+    try:
+        # Try finding cards using a unique attribute or tag
+        worksheet_cards = driver.find_elements(By.XPATH, "//div[contains(text(), 'P5') or contains(text(), 'P6')]")
+    
+        if not worksheet_cards:
+            print("⚠️ No P5/P6 worksheet cards found with fallback XPath. Trying full card block...")
+            worksheet_cards = driver.find_elements(By.CLASS_NAME, "MuiGrid-root")
 
-for i, btn in enumerate(more_buttons):
-    center = pyautogui.center(btn)
-    pyautogui.moveTo(center)
-    pyautogui.click()
-    print(f"🟢 Clicked More button #{i + 1} at {center}")
-    time.sleep(1)
+        print(f"📄 Found {len(worksheet_cards)} total cards before filtering")
 
-    # Improved wait and click for Print PDF
-    print("🧾 Waiting for 'Print PDF' option to appear...")
-    found_pdf = False
-    for _ in range(8):
-        pdf_option = pyautogui.locateCenterOnScreen("print_pdf.png", confidence=0.6)
-        if pdf_option:
-            pyautogui.moveTo(pdf_option, duration=0.3)
-            pyautogui.click()
-            found_pdf = True
-            print("✅ Clicked 'Print PDF' successfully")
-            break
+        filtered_cards = []
+        for card in worksheet_cards:
+            text = card.text
+            if "P5" in text or "P6" in text:
+                filtered_cards.append(card)
+    
+        print(f"🎯 Found {len(filtered_cards)} P5/P6 worksheet cards")
+    except Exception as e:
+        print(f"❌ Error while detecting or processing worksheet cards: {e}")
+        driver.quit()
+        exit()
+
+    print(f"📄 Found {len(worksheet_cards)} total cards")
+
+    filtered_cards = []
+    for card in worksheet_cards:
+        text = card.text
+        if "P5" in text or "P6" in text:
+            filtered_cards.append(card)
+
+    print(f"🎯 Found {len(filtered_cards)} P5/P6 worksheet cards")
+
+    for i, card in enumerate(filtered_cards):
+        driver.execute_script("arguments[0].scrollIntoView(true);", card)
         time.sleep(1)
+        card.click()
+        print(f"➡️ Opened worksheet #{i + 1}")
+        time.sleep(4)
 
-    if not found_pdf:
-        pyautogui.screenshot(f"debug_print_pdf_not_found_{int(time.time())}.png")
-        print("❌ Print PDF not found. Screenshot saved.")
-        continue
-
-    # Wait for new tab to appear
-    print("🕒 Waiting for new tab to render print page...")
-    time.sleep(5)
-
-    # Click on actual system 'Print' button to trigger save
-    print("🖨️ Clicking actual browser print button...")
-    print_btn = None
-    for _ in range(6):
-        print_btn = pyautogui.locateCenterOnScreen("chrome_print_button.png", confidence=0.7)
-        if print_btn:
-            pyautogui.moveTo(print_btn)
+        # Locate and click the More (3-dot) button
+        more_button = pyautogui.locateCenterOnScreen("more_button.png", confidence=0.5)
+        if more_button:
+            pyautogui.moveTo(more_button)
             pyautogui.click()
-            print("💾 Triggered save from print button.")
-            break
-        time.sleep(1)
+            time.sleep(1)
+        else:
+            pyautogui.screenshot(f"debug_more_button_not_found_{i}.png")
+            print("❌ More button not found. Screenshot saved.")
+            continue
 
-    if not print_btn:
-        pyautogui.screenshot("debug_print_button_not_found.png")
-        print("❌ Print button not found. Screenshot saved.")
-        continue
+        # Click on 'Print PDF'
+        print("🧾 Waiting for 'Print PDF' option to appear...")
+        found_pdf = False
+        for _ in range(8):
+            pdf_option = pyautogui.locateCenterOnScreen("print_pdf.png", confidence=0.6)
+            if pdf_option:
+                pyautogui.moveTo(pdf_option, duration=0.3)
+                pyautogui.click()
+                found_pdf = True
+                print("✅ Clicked 'Print PDF' successfully")
+                break
+            time.sleep(1)
 
-    # Wait for Save As dialog and click filename input
-    print("💬 Waiting for Save As dialog...")
-    time.sleep(2)
-    pyautogui.click(200, 700)  # Adjust this to center on your filename input box
-    pyautogui.write(f"worksheet_{int(time.time())}.pdf")
-    pyautogui.press("enter")
-    print("✅ Saved file")
+        if not found_pdf:
+            pyautogui.screenshot(f"debug_print_pdf_not_found_{int(time.time())}.png")
+            print("❌ Print PDF not found. Screenshot saved.")
+            continue
 
-    # Wait and close the current worksheet view
-    time.sleep(5)
-    pyautogui.hotkey('ctrl', 'w')  # Close tab (same tab returns to worksheet list)
-    print("🔙 Returned to worksheet list")
-    time.sleep(3)
+        # Wait for new tab to appear
+        print("🕒 Waiting for new tab to render print page...")
+        time.sleep(6)
 
-print("✅ All visible PDFs processed")
+        # Click the print button
+        print("🖨️ Clicking actual browser print button...")
+        print_btn = None
+        for _ in range(6):
+            print_btn = pyautogui.locateCenterOnScreen("chrome_print_button.png", confidence=0.7)
+            if print_btn:
+                pyautogui.moveTo(print_btn)
+                pyautogui.click()
+                print("💾 Triggered save from print button.")
+                break
+            time.sleep(1)
+
+        if not print_btn:
+            pyautogui.screenshot("debug_print_button_not_found.png")
+            print("❌ Print button not found. Screenshot saved.")
+            continue
+
+        # Wait for Save As dialog
+        print("💬 Waiting for Save As dialog...")
+        time.sleep(2)
+        pyautogui.click(200, 700)  # Adjust if needed
+        pyautogui.write(f"worksheet_{int(time.time())}.pdf")
+        pyautogui.press("enter")
+        print("✅ Saved file")
+
+        # Close print tab
+        time.sleep(5)
+        pyautogui.hotkey('ctrl', 'w')
+        print("✅ Closed print tab")
+
+        # Reactivate Geniebook main tab (if needed)
+        try:
+            chrome_window.activate()
+            time.sleep(1)
+        except:
+            pass
+
+except Exception as e:
+    print(f"❌ Error while detecting or processing worksheet cards: {e}")
+
+print("✅ All visible P5/P6 PDFs processed")
 driver.quit()
