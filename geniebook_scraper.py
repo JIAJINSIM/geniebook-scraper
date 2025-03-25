@@ -64,33 +64,24 @@ except Exception as e:
     driver.quit()
     exit()
 
+# Allow user to manually scroll
+print("🧍‍♂️ Please scroll down manually to load all worksheets...")
+input("📌 Press [ENTER] once you're done scrolling.\n")
+
 # Get all worksheet cards using Selenium and filter P5-P6
 print("🔍 Detecting worksheet cards using Selenium...")
 try:
-    # Try more reliable locator for worksheet cards
-    try:
-        # Try finding cards using a unique attribute or tag
-        worksheet_cards = driver.find_elements(By.XPATH, "//div[contains(text(), 'P5') or contains(text(), 'P6')]")
-    
-        if not worksheet_cards:
-            print("⚠️ No P5/P6 worksheet cards found with fallback XPath. Trying full card block...")
-            worksheet_cards = driver.find_elements(By.CLASS_NAME, "MuiGrid-root")
+    worksheet_cards = driver.find_elements(By.XPATH, "//div[contains(text(), 'P5') or contains(text(), 'P6')]")
 
-        print(f"📄 Found {len(worksheet_cards)} total cards before filtering")
+    if not worksheet_cards:
+        print("⚠️ No cards found by XPath. Dumping raw elements to help debug...")
+        all_elements = driver.find_elements(By.CLASS_NAME, "MuiGrid-root")
+        print(f"🧩 Found {len(all_elements)} .MuiGrid-root elements")
+        for i, el in enumerate(all_elements[:10]):
+            print(f"#{i+1}: {el.text[:80]}...")
+        worksheet_cards = all_elements
 
-        filtered_cards = []
-        for card in worksheet_cards:
-            text = card.text
-            if "P5" in text or "P6" in text:
-                filtered_cards.append(card)
-    
-        print(f"🎯 Found {len(filtered_cards)} P5/P6 worksheet cards")
-    except Exception as e:
-        print(f"❌ Error while detecting or processing worksheet cards: {e}")
-        driver.quit()
-        exit()
-
-    print(f"📄 Found {len(worksheet_cards)} total cards")
+    print(f"📄 Found {len(worksheet_cards)} total cards before filtering")
 
     filtered_cards = []
     for card in worksheet_cards:
@@ -103,11 +94,15 @@ try:
     for i, card in enumerate(filtered_cards):
         driver.execute_script("arguments[0].scrollIntoView(true);", card)
         time.sleep(1)
-        card.click()
-        print(f"➡️ Opened worksheet #{i + 1}")
+        try:
+            card.click()
+            print(f"➡️ Opened worksheet #{i + 1}")
+        except Exception as e:
+            print(f"⚠️ Could not click worksheet #{i + 1}: {e}")
+            continue
+
         time.sleep(4)
 
-        # Locate and click the More (3-dot) button
         more_button = pyautogui.locateCenterOnScreen("more_button.png", confidence=0.5)
         if more_button:
             pyautogui.moveTo(more_button)
@@ -118,7 +113,6 @@ try:
             print("❌ More button not found. Screenshot saved.")
             continue
 
-        # Click on 'Print PDF'
         print("🧾 Waiting for 'Print PDF' option to appear...")
         found_pdf = False
         for _ in range(8):
@@ -136,11 +130,9 @@ try:
             print("❌ Print PDF not found. Screenshot saved.")
             continue
 
-        # Wait for new tab to appear
         print("🕒 Waiting for new tab to render print page...")
         time.sleep(6)
 
-        # Click the print button
         print("🖨️ Clicking actual browser print button...")
         print_btn = None
         for _ in range(6):
@@ -157,20 +149,17 @@ try:
             print("❌ Print button not found. Screenshot saved.")
             continue
 
-        # Wait for Save As dialog
         print("💬 Waiting for Save As dialog...")
         time.sleep(2)
-        pyautogui.click(200, 700)  # Adjust if needed
+        pyautogui.click(200, 700)
         pyautogui.write(f"worksheet_{int(time.time())}.pdf")
         pyautogui.press("enter")
         print("✅ Saved file")
 
-        # Close print tab
         time.sleep(5)
         pyautogui.hotkey('ctrl', 'w')
         print("✅ Closed print tab")
 
-        # Reactivate Geniebook main tab (if needed)
         try:
             chrome_window.activate()
             time.sleep(1)
